@@ -23,6 +23,8 @@ class TripState(TypedDict):
     preference: Optional[str]          # outdoor/indoor
     weather_data: Optional[dict]       # raw weather API response
     weather_summary: Optional[str]     # human readable weather response
+    date_within_forecast: Optional[bool]  # whether the date is within the 5-day forecast window
+    events: Optional[list]                # list of events fetched  
     final_response: Optional[str]      # final output to user
 
 
@@ -91,6 +93,67 @@ def parse_user_input(state: TripState) -> TripState:
 from datetime import datetime
 from dateutil import parser as date_parser
 
+
+def fetch_weather(state: TripState) -> TripState:
+    print(f"\n[Node 2] Fetching forecast for {state['location']} on {state['date']}...")
+
+    API_KEY = os.environ.get("WEATHER_API_KEY")
+    location = state["location"] or "Brampton"
+
+    url = f"https://api.openweathermap.org/data/2.5/forecast?q={location},CA&appid={API_KEY}&units=metric"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        data = response.json()
+
+        try:
+            parsed_date = date_parser.parse(state["date"], fuzzy=True)
+            target_day = parsed_date.strftime("%A")
+            target_date_str = parsed_date.strftime("%A %B %d %Y")
+        except:
+            target_day = "Saturday"
+            target_date_str = "Saturday (date unknown)"
+            parsed_date = None
+
+        print(f"[Node 2] Looking for forecast on: {target_date_str}")
+
+        day_forecasts = [
+            entry for entry in data["list"]
+            if datetime.fromtimestamp(entry["dt"]).strftime("%A") == target_day
+        ]
+
+        if day_forecasts:
+            midday = day_forecasts[len(day_forecasts) // 2]
+            summary = (
+                f"Temperature: {midday['main']['temp']}°C, "
+                f"Feels like: {midday['main']['feels_like']}°C, "
+                f"Conditions: {midday['weather'][0]['description']}, "
+                f"Humidity: {midday['main']['humidity']}%, "
+                f"Wind: {midday['wind']['speed']} m/s"
+            )
+            date_within_forecast = True
+        else:
+            summary = f"No forecast available for {target_day} (may be beyond 5-day window)"
+            date_within_forecast = False
+
+        print(f"[Node 2] Forecast: {summary}")
+        print(f"[Node 2] Date within forecast window: {date_within_forecast}")
+
+        return {
+            **state,
+            "weather_data": day_forecasts,
+            "weather_summary": summary,
+            "date_within_forecast": date_within_forecast
+        }
+    else:
+        print(f"[Node 2] Weather API error: {response.status_code}")
+        return {
+            **state,
+            "weather_data": None,
+            "weather_summary": "Weather data unavailable",
+            "date_within_forecast": False
+        }
+    
 def fetch_weather(state: TripState) -> TripState:
     print(f"\n[Node 2] Fetching forecast for {state['location']} on {state['date']}...")
 
@@ -131,21 +194,29 @@ def fetch_weather(state: TripState) -> TripState:
                 f"Humidity: {midday['main']['humidity']}%, "
                 f"Wind: {midday['wind']['speed']} m/s"
             )
+            date_within_forecast = True
+
         else:
             summary = f"No forecast available for {target_day} (may be beyond 5-day window)"
+            date_within_forecast = False
 
         print(f"[Node 2] Forecast: {summary}")
+        print(f"[Node 2] Date within forecast window: {date_within_forecast}")
+
         return {
             **state,
             "weather_data": day_forecasts,
-            "weather_summary": summary
+            "weather_summary": summary,
+            "date_within_forecast": date_within_forecast
         }
     else:
         print(f"[Node 2] Weather API error: {response.status_code}")
         return {
             **state,
             "weather_data": None,
-            "weather_summary": "Weather data unavailable"
+            "weather_summary": "Weather data unavailable",
+            "date_within_forecast": False
+
         }
 
 # ─────────────────────────────────────────
@@ -195,6 +266,19 @@ def generate_response(state: TripState) -> TripState:
         "final_response": result.content
     }
 
+
+# function checks if the date is within the 5-day forecast window
+def check_date_in_forecast(state: TripState) -> str:
+    """
+    Conditional edge — decides which node to go to after weather fetch.
+    Returns the name of the next node to visit.
+    """
+    if state.get("date_within_forecast"):
+        print("\n[Conditional] Date is within forecast window → fetching events with weather context")
+        return "fetch_events"
+    else:
+        print("\n[Conditional] Date is beyond forecast window → fetching events without weather context")
+        return "fetch_events_no_weather"
 
 # ─────────────────────────────────────────
 # 6. BUILD THE GRAPH
