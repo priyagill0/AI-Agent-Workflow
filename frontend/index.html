@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Waypoint — Group Outing Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0F1418;
+    --bg-alt: #121820;
+    --surface: #182027;
+    --surface-raised: #1E2830;
+    --rail-inactive: #29343D;
+    --accent: #D8A34E;       /* trail-blaze gold */
+    --accent-dim: #8A6B34;
+    --teal: #5FB8B0;         /* weather / sky */
+    --moss: #7FB88B;         /* done / success */
+    --clay: #D97D6B;         /* error */
+    --text: #EDEFEF;
+    --text-muted: #8A94A0;
+    --text-faint: #566068;
+    --hairline: #253039;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  body {
+    background-image:
+      radial-gradient(ellipse 800px 400px at 15% -10%, rgba(216,163,78,0.06), transparent),
+      radial-gradient(ellipse 600px 300px at 100% 0%, rgba(95,184,176,0.05), transparent);
+  }
+
+  .app {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 36px 28px 64px;
+  }
+
+  header.site {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+
+  .brand h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 30px;
+    letter-spacing: -0.01em;
+    margin: 0;
+    color: var(--text);
+  }
+
+  .brand h1 .dot { color: var(--accent); }
+
+  .brand .tag {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.02em;
+  }
+
+  .disclosure {
+    font-size: 12.5px;
+    color: var(--text-faint);
+    max-width: 340px;
+    line-height: 1.5;
+    text-align: right;
+  }
+
+  .disclosure strong { color: var(--text-muted); font-weight: 500; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  /* ── Left rail: input + trail log ───────────────────────── */
+
+  .panel-left {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .input-card label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  textarea#userInput {
+    width: 100%;
+    min-height: 92px;
+    resize: vertical;
+    background: var(--bg-alt);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14.5px;
+    line-height: 1.5;
+    padding: 12px;
+  }
+
+  textarea#userInput:focus {
+    outline: none;
+    border-color: var(--accent-dim);
+  }
+
+  .examples {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-faint);
+    line-height: 1.5;
+  }
+
+  button#planBtn {
+    margin-top: 14px;
+    width: 100%;
+    background: var(--accent);
+    color: #1a1305;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 14.5px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.1s ease;
+  }
+
+  button#planBtn:hover { filter: brightness(1.08); }
+  button#planBtn:active { transform: scale(0.99); }
+  button#planBtn:disabled {
+    background: var(--rail-inactive);
+    color: var(--text-faint);
+    cursor: not-allowed;
+  }
+
+  .trail-card h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    color: var(--text);
+  }
+
+  .trail-card .sub {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-bottom: 16px;
+  }
+
+  .trail {
+    position: relative;
+    padding-left: 26px;
+  }
+
+  .trail-line {
+    position: absolute;
+    left: 8px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--rail-inactive);
+  }
+
+  .trail-line-fill {
+    position: absolute;
+    left: 8px;
+    top: 6px;
+    width: 2px;
+    background: var(--accent);
+    height: 0%;
+    transition: height 0.4s ease;
+  }
+
+  .waypoint {
+    position: relative;
+    margin-bottom: 18px;
+  }
+
+  .waypoint:last-child { margin-bottom: 0; }
+
+  .waypoint .marker {
+    position: absolute;
+    left: -26px;
+    top: 1px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--bg-alt);
+    border: 2px solid var(--rail-inactive);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .waypoint.active .marker {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(216,163,78,0.15);
+  }
+
+  .waypoint.done .marker {
+    border-color: var(--moss);
+    background: var(--moss);
+  }
+
+  .waypoint.error .marker {
+    border-color: var(--clay);
+    background: var(--clay);
+  }
+
+  .waypoint .wp-label {
+    font-size: 13.5px;
+    color: var(--text-faint);
+    font-weight: 500;
+    transition: color 0.2s ease;
+  }
+
+  .waypoint.active .wp-label,
+  .waypoint.done .wp-label { color: var(--text); }
+
+  .waypoint .wp-data {
+    margin-top: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    background: var(--bg-alt);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: none;
+  }
+
+  .waypoint .wp-data.show { display: block; }
+  .waypoint .wp-data div { white-space: pre-wrap; word-break: break-word; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .waypoint.active .marker { animation: pulse 1.2s ease-in-out infinite; }
+
+  /* ── Right: results ─────────────────────────────────────── */
+
+  .panel-right { min-height: 300px; }
+
+  .empty-state {
+    border: 1px dashed var(--hairline);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 14px;
+  }
+
+  .empty-state .glyph {
+    font-size: 28px;
+    margin-bottom: 10px;
+    opacity: 0.6;
+  }
+
+  .grounding-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--moss);
+    background: rgba(127,184,139,0.08);
+    border: 1px solid rgba(127,184,139,0.25);
+    border-radius: 999px;
+    padding: 6px 14px;
+    margin-bottom: 18px;
+  }
+
+  .result-section {
+    margin-bottom: 16px;
+  }
+
+  .result-section h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+
+  .data-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 10px;
+  }
+
+  .item-card {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .item-card .name {
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .item-card .meta {
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .item-card a {
+    color: var(--teal);
+    text-decoration: none;
+    font-size: 12px;
+  }
+  .item-card a:hover { text-decoration: underline; }
+
+  .final-card {
+    background: var(--surface-raised);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 4px 0;
+    margin-top: 6px;
+  }
+
+  .final-block {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .final-block:last-child { border-bottom: none; }
+
+  .final-block h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    margin: 0 0 8px;
+    color: var(--text);
+  }
+
+  .final-block p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-muted);
+  }
+
+  .final-block a { color: var(--teal); }
+
+  .error-banner {
+    border: 1px solid rgba(217,125,107,0.4);
+    background: rgba(217,125,107,0.08);
+    color: var(--clay);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13.5px;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="site">
+    <div class="brand">
+      <h1>Waypoint<span class="dot">.</span></h1>
+      <span class="tag">a transparent group-outing agent</span>
+    </div>
+    <div class="disclosure">
+      <strong>Grounded, not guessed:</strong> every venue, price, and tip below comes
+      straight from a live API call shown in the trail log — the model never invents them.
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- LEFT: input + live trail log -->
+    <div class="panel-left">
+
+      <div class="card input-card">
+        <label for="userInput">What are you planning?</label>
+        <textarea id="userInput" placeholder="e.g. Me and 3 friends want to do something fun in Toronto this Saturday, budget is $30 each."></textarea>
+        <div class="examples">Tell it a city, a date, group size, and a budget — the rest is optional.</div>
+        <button id="planBtn">Plan the outing</button>
+      </div>
+
+      <div class="card trail-card">
+        <h2>Agent trail</h2>
+        <div class="sub">Live trace of every step the agent actually takes</div>
+        <div class="trail" id="trail">
+          <div class="trail-line"></div>
+          <div class="trail-line-fill" id="trailFill"></div>
+          <!-- waypoints injected by JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: results -->
+    <div class="panel-right" id="results">
+      <div class="empty-state">
+        <div class="glyph">🧭</div>
+        Describe your outing on the left and watch the agent gather real weather,<br/>
+        events, local spots, and community tips before it writes anything.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const NODE_ORDER = [
+  { key: "parse_input", label: "Reading your request" },
+  { key: "fetch_weather", label: "Checking the forecast" },
+  { key: "fetch_events", label: "Looking for ticketed events" },
+  { key: "fetch_yelp", label: "Finding local spots" },
+  { key: "fetch_reddit", label: "Searching Reddit for local tips" },
+  { key: "merge_results", label: "Combining everything found" },
+  { key: "generate_response", label: "Writing your itinerary" },
+];
+
+// fetch_events_no_weather is the same slot as fetch_events (conditional branch)
+const NODE_ALIASES = { "fetch_events_no_weather": "fetch_events" };
+
+const trailEl = document.getElementById("trail");
+const trailFillEl = document.getElementById("trailFill");
+const resultsEl = document.getElementById("results");
+const inputEl = document.getElementById("userInput");
+const btnEl = document.getElementById("planBtn");
+
+let waypointEls = {};
+let groundedCount = 0;
+
+function buildTrail() {
+  trailEl.querySelectorAll(".waypoint").forEach(el => el.remove());
+  waypointEls = {};
+  NODE_ORDER.forEach(n => {
+    const wp = document.createElement("div");
+    wp.className = "waypoint";
+    wp.innerHTML = `
+      <div class="marker">○</div>
+      <div class="wp-label">${n.label}</div>
+      <div class="wp-data"></div>
+    `;
+    trailEl.appendChild(wp);
+    waypointEls[n.key] = wp;
+  });
+  trailFillEl.style.height = "0%";
+}
+
+function setTrailProgress(doneCount) {
+  const pct = (doneCount / NODE_ORDER.length) * 100;
+  trailFillEl.style.height = pct + "%";
+}
+
+function markActive(key) {
+  const wp = waypointEls[key];
+  if (!wp) return;
+  wp.classList.add("active");
+  wp.querySelector(".marker").textContent = "◐";
+}
+
+function markDone(key, dataHtml) {
+  const wp = waypointEls[key];
+  if (!wp) return;
+  wp.classList.remove("active");
+  wp.classList.add("done");
+  wp.querySelector(".marker").textContent = "✓";
+  if (dataHtml) {
+    const dataEl = wp.querySelector(".wp-data");
+    dataEl.innerHTML = dataHtml;
+    dataEl.classList.add("show");
+  }
+}
+
+function markError(key, msg) {
+  const wp = waypointEls[key] || waypointEls["parse_input"];
+  wp.classList.remove("active");
+  wp.classList.add("error");
+  wp.querySelector(".marker").textContent = "✕";
+  const dataEl = wp.querySelector(".wp-data");
+  dataEl.innerHTML = `<div style="color:var(--clay)">${escapeHtml(msg)}</div>`;
+  dataEl.classList.add("show");
+}
+
+function escapeHtml(s) {
+  return (s || "").toString()
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+function linkify(text) {
+  return escapeHtml(text).replace(/(https?:\/\/[^\s]+)/g, url =>
+    `<a href="${url}" target="_blank" rel="noopener">${url.length > 46 ? url.slice(0, 46) + "…" : url}</a>`
+  );
+}
+
+// ── Per-node data readouts (the "not a black box" part) ──────────────
+
+function renderStepData(node, data) {
+  switch (node) {
+    case "parse_input":
+      return `<div>location: ${data.location ?? "—"}
+date: ${data.date ?? "—"}
+group_size: ${data.group_size ?? "—"}
+budget_per_person: $${data.budget_per_person ?? "—"}
+preference: ${data.preference ?? "—"}
+yelp_categories: ${(data.yelp_categories || []).join(", ")}</div>`;
+
+    case "fetch_weather":
+      return `<div>${data.weather_summary ?? "unavailable"}
+within 5-day forecast window: ${data.date_within_forecast}</div>`;
+
+    case "fetch_events": {
+      groundedCount += data.count || 0;
+      if (!data.count) return `<div>0 events returned by Ticketmaster</div>`;
+      return `<div>${data.count} event(s) found via Ticketmaster:
+${data.events.map(e => `• ${e.name} — ${e.price}`).join("\n")}</div>`;
+    }
+
+    case "fetch_yelp": {
+      groundedCount += data.count || 0;
+      if (!data.count) return `<div>0 businesses returned by Yelp</div>`;
+      return `<div>${data.count} venue(s) found via Yelp:
+${data.results.map(y => `• ${y.name} (${y.rating}★, ${y.price || "—"})`).join("\n")}</div>`;
+    }
+
+    case "fetch_reddit": {
+      groundedCount += data.count || 0;
+      if (!data.count) return `<div>0 relevant Reddit threads found</div>`;
+      return `<div>${data.count} thread(s) found via Tavily search:
+${data.tips.map(t => `• ${t.title}`).join("\n")}</div>`;
+    }
+
+    case "merge_results":
+      return `<div>events: ${data.events} · yelp: ${data.yelp_results} · reddit: ${data.reddit_tips}</div>`;
+
+    case "generate_response":
+      return `<div>Synthesized using only the grounded data above — no invented venues or prices.</div>`;
+
+    default:
+      return "";
+  }
+}
+
+// ── Rendering the final structured result panel ──────────────────────
+
+function renderResultsShell() {
+  resultsEl.innerHTML = `
+    <div class="grounding-badge" id="groundingBadge">⟡ gathering live data…</div>
+    <div id="dataSections"></div>
+    <div id="finalWrap"></div>
+  `;
+}
+
+function updateGroundingBadge() {
+  const badge = document.getElementById("groundingBadge");
+  if (badge) badge.textContent = `⟡ ${groundedCount} real data point${groundedCount === 1 ? "" : "s"} gathered so far`;
+}
+
+function renderDataSection(title, items, renderItem) {
+  const wrap = document.getElementById("dataSections");
+  if (!items || !items.length) return;
+  const section = document.createElement("div");
+  section.className = "result-section";
+  section.innerHTML = `<h3>${title}</h3><div class="data-grid">${items.map(renderItem).join("")}</div>`;
+  wrap.appendChild(section);
+}
+
+function renderFinalResponse(text) {
+  const finalWrap = document.getElementById("finalWrap");
+  const chunks = text.split(/━{5,}/).map(c => c.trim()).filter(Boolean);
+
+  const card = document.createElement("div");
+  card.className = "final-card";
+
+  chunks.forEach(chunk => {
+    const lines = chunk.split("\n").map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return;
+    const header = lines[0].replace(/[🗓️👥💰🌤️📅🎟️🎳💬]/g, "").trim();
+    const body = lines.slice(1).join("\n");
+    const block = document.createElement("div");
+    block.className = "final-block";
+    block.innerHTML = `<h4>${escapeHtml(header)}</h4><p>${linkify(body).replace(/\n\n/g, "<br><br>").replace(/\n/g, "<br>")}</p>`;
+    card.appendChild(block);
+  });
+
+  finalWrap.appendChild(card);
+}
+
+// ── Main run ───────────────────────────────────────────────────────
+
+function runAgent(userInput) {
+  buildTrail();
+  renderResultsShell();
+  groundedCount = 0;
+  btnEl.disabled = true;
+  btnEl.textContent = "Planning…";
+
+  let doneCount = 0;
+  const es = new EventSource(`/api/plan?input=${encodeURIComponent(userInput)}`);
+
+  es.onmessage = (evt) => {
+    const payload = JSON.parse(evt.data);
+
+    if (payload.type === "start") {
+      markActive("parse_input");
+      return;
+    }
+
+    if (payload.type === "step") {
+      const key = NODE_ALIASES[payload.node] || payload.node;
+      const html = renderStepData(key, payload.data || {});
+      markDone(key, html);
+      doneCount += 1;
+      setTrailProgress(doneCount);
+      updateGroundingBadge();
+
+      if (key === "fetch_events" && payload.data.events?.length) {
+        renderDataSection("Ticketed events", payload.data.events, e => `
+          <div class="item-card">
+            <div class="name">${escapeHtml(e.name)}</div>
+            <div class="meta">${escapeHtml(e.venue || "")} · ${escapeHtml(e.price)}</div>
+            <a href="${e.url}" target="_blank" rel="noopener">View on Ticketmaster ↗</a>
+          </div>`);
+      }
+      if (key === "fetch_yelp" && payload.data.results?.length) {
+        renderDataSection("Local spots", payload.data.results, y => `
+          <div class="item-card">
+            <div class="name">${escapeHtml(y.name)}</div>
+            <div class="meta">${escapeHtml(y.category || "")} · ${y.rating}★ · ${escapeHtml(y.price || "—")}</div>
+            <a href="${y.url}" target="_blank" rel="noopener">View on Yelp ↗</a>
+          </div>`);
+      }
+      if (key === "fetch_reddit" && payload.data.tips?.length) {
+        renderDataSection("From the locals", payload.data.tips, t => `
+          <div class="item-card">
+            <div class="name">${escapeHtml(t.title)}</div>
+            <a href="${t.url}" target="_blank" rel="noopener">Open thread ↗</a>
+          </div>`);
+      }
+      if (key === "generate_response" && payload.data.final_response) {
+        renderFinalResponse(payload.data.final_response);
+      }
+      return;
+    }
+
+    if (payload.type === "done") {
+      es.close();
+      btnEl.disabled = false;
+      btnEl.textContent = "Plan the outing";
+      const badge = document.getElementById("groundingBadge");
+      if (badge) badge.textContent = `✓ Done — grounded in ${groundedCount} real data points`;
+      return;
+    }
+
+    if (payload.type === "error") {
+      resultsEl.insertAdjacentHTML("afterbegin", `<div class="error-banner">${escapeHtml(payload.message)}</div>`);
+      markError("parse_input", payload.message);
+      es.close();
+      btnEl.disabled = false;
+      btnEl.textContent = "Plan the outing";
+    }
+  };
+
+  es.onerror = () => {
+    resultsEl.insertAdjacentHTML("afterbegin",
+      `<div class="error-banner">Lost connection to the agent server. Is app.py running on port 5001?</div>`);
+    es.close();
+    btnEl.disabled = false;
+    btnEl.textContent = "Plan the outing";
+  };
+}
+
+buildTrail();
+
+btnEl.addEventListener("click", () => {
+  const val = inputEl.value.trim();
+  if (!val) { inputEl.focus(); return; }
+  runAgent(val);
+});
+
+inputEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) btnEl.click();
+});
+</script>
+</body>
+<footer class="site-footer">
+    <span>Waypoint</span> · designed &amp; built by <strong>Priya Gill</strong> · © 2026
+  </footer>
+</html>
