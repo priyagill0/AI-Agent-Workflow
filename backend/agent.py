@@ -150,14 +150,16 @@ def fetch_weather(state: TripState) -> TripState:
             target_day = "Saturday"
             target_date_str = "Saturday (date unknown)"
 
+        # Filter forecast entries for target day 
+        target_date_only = parsed_date.date()
+
         print(f"[Node 2] Looking for forecast on: {target_date_str}")
 
-        # Filter forecast entries for target day
         day_forecasts = [
             entry for entry in data["list"]
-            if datetime.fromtimestamp(entry["dt"]).strftime("%A") == target_day
+            if datetime.fromtimestamp(entry["dt"]).date() == target_date_only
         ]
-
+        
         if day_forecasts:
             # Take midday forecast
             midday = day_forecasts[len(day_forecasts) // 2]
@@ -376,7 +378,7 @@ def fetch_reddit_tips(state: TripState) -> TripState:
         }
     
 # Node 5 
-# Merge Ticketmaster + Yelp results
+# Merge Ticketmaster + Yelp _ Reddit results
 def merge_results(state: TripState) -> TripState:
     print("\n[Node 5] Merging all results...")
 
